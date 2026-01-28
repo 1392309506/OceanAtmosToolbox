@@ -1,0 +1,55 @@
+# 通用配置
+general:
+  log_level: INFO
+  log_dir: "./logs"
+  max_retries: 3
+  timeout: 300
+  output_base_dir: "./data"
+
+# C3S配置
+c3s:
+  enabled: true
+  api_url: "https://cds.climate.copernicus.eu/api"
+  datasets:
+    era5_monthly:
+      name: "reanalysis-era5-single-levels-monthly-means"
+      variables:
+        - "10m_u_component_of_wind"
+        - "10m_v_component_of_wind"
+        - "sea_surface_temperature"
+        - "mean_sea_level_pressure"
+      time: "00:00"
+      format: "netcdf"
+
+# CMEMS配置
+cmems:
+  enabled: true
+  api_url: "https://data.marine.copernicus.eu"
+  datasets:
+    glo12_monthly:
+      dataset_id: "cmems_mod_glo_phy_my_0.083deg_P1M-m"
+      variables:
+        - "thetao"
+        - "so"
+        - "uo"
+        - "vo"
+        - "zos"
+      depth_range: [0, 1000]
+      spatial_range: [-180, 180, -90, 90]
+
+# 预定义下载任务
+#download_tasks:
+#
+#  # C3S任务模板
+#  c3s_era5_monthly:
+#    service: "c3s"
+#    dataset: "era5_monthly"
+#    output_subdir: "c3s/monthly"
+#    file_pattern: "era5_{year}-{month:02d}.nc"
+#
+#  # CMEMS任务模板
+#  cmems_glo12_monthly:
+#    service: "cmems"
+#    dataset: "glo12_monthly"
+#    output_subdir: "cmems/monthly"
+#    file_pattern: "glo12_{year}-{month:02d}.nc"
