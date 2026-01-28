@@ -1,9 +1,12 @@
 # OceanAtmosToolbox
 
 用于批量下载 C3S 与 CMEMS 海洋数据的工具集，支持命令行和简单 API 示例。
+
 C3S：https://cds.climate.copernicus.eu/datasets
+
 CMEMS: https://data.marine.copernicus.eu/products
-后续将持续更新更多数据集并细化下载方法，以及数据预处理手段
+
+后续将持续更新更多数据集并细化下载方法，以及数据预处理手段。
 
 ## 功能概览
 - C3S ERA5 月平均/小时/气压层数据下载
