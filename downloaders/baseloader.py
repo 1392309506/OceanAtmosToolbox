@@ -70,3 +70,15 @@ class BaseDownloader(ABC):
         if total > 0:
             percent = (current / total) * 100
             self.logger.info(f"{message} [{current}/{total}] {percent:.1f}%")
+
+    def list_available_datasets(self, datasets: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """列出可用数据集（基于配置）"""
+        datasets = datasets or {}
+        result: Dict[str, Any] = {}
+        for name, cfg in datasets.items():
+            if isinstance(cfg, dict):
+                desc = cfg.get('name') or cfg.get('dataset_id') or ''
+                result[name] = desc
+            else:
+                result[name] = cfg
+        return result

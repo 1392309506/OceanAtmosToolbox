@@ -4,6 +4,7 @@ C3S数据下载器
 import cdsapi
 import os
 from typing import Dict, Any, List, Optional
+from datetime import datetime, timedelta
 from pathlib import Path
 import json
 
@@ -18,7 +19,7 @@ class C3SDownloader(BaseDownloader):
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config, "C3SDownloader")
         self.service_config = config.get('c3s', {})
-        self.client = None
+        self.client: Optional[cdsapi.Client] = None
 
     def connect(self) -> bool:
         """连接到C3S API"""
@@ -48,15 +49,23 @@ class C3SDownloader(BaseDownloader):
                 "variable": params.get('variables') or dataset_cfg['variables'],
                 "year": str(params['year']),
                 "month": f"{params['month']:02d}",
-                "time": dataset_cfg.get('time', '00:00'),
+                "time": params.get('time') or dataset_cfg.get('time', '00:00'),
                 "format": dataset_cfg.get('format', 'netcdf')
             }
+
+            if 'data_format' in dataset_cfg:
+                request_params['data_format'] = dataset_cfg['data_format']
+            if 'download_format' in dataset_cfg:
+                request_params['download_format'] = dataset_cfg['download_format']
 
             # 添加可选参数
             if 'day' in params:
                 request_params['day'] = [f"{d:02d}" for d in params['day']]
 
             logger.info(f"下载C3S数据: {params}")
+            if not self.client:
+                raise RuntimeError("C3S 客户端未初始化")
+
             self.client.retrieve(
                 dataset_cfg['name'],
                 request_params,
@@ -75,52 +84,91 @@ class C3SDownloader(BaseDownloader):
             logger.error(f"下载失败: {e}")
             return False
 
-    def download_range(self, start_year: int, end_year: int,
-                       dataset_name: str = "era5_monthly",
-                       start_month: Optional[int] = None,
-                       end_month: Optional[int] = None,
-                       variables: List[str] = None) -> Dict[str, bool]:
-        """下载指定时间范围的数据"""
+
+    def download_date_range(self, start_date: str, end_date: str,
+                            dataset_name: str = "era5_hourly",
+                            variables: Optional[List[str]] = None,
+                            hours: Optional[List[str]] = None) -> Dict[str, bool]:
+        """按日期范围下载（支持日/小时级）"""
         results = {}
 
         if not self.connect():
             logger.error("无法连接到C3S API")
             return results
 
-        def resolve_month_range(year: int) -> range:
-            if start_month is None and end_month is None:
-                return range(1, 13)
-            if year == start_year and year == end_year:
-                sm = start_month or 1
-                em = end_month or 12
-            elif year == start_year:
-                sm = start_month or 1
-                em = 12
-            elif year == end_year:
-                sm = 1
-                em = end_month or 12
-            else:
-                sm = 1
-                em = 12
-            return range(sm, em + 1)
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        if end_dt < start_dt:
+            raise ValueError("end_date 不能早于 start_date")
 
-        total_months = sum(len(list(resolve_month_range(y))) for y in range(start_year, end_year + 1))
+        total_days = (end_dt - start_dt).days + 1
         current = 0
 
-        for year in range(start_year, end_year + 1):
-            for month in resolve_month_range(year):
-                current += 1
+        current_dt = start_dt
+        while current_dt <= end_dt:
+            current += 1
+            year = current_dt.year
+            month = current_dt.month
+            day = current_dt.day
 
-                # 生成输出路径
-                output_path = self.output_dir / f"{dataset_name}_{year}_{month:02d}.nc"
+            output_path = self.output_dir / f"{dataset_name}_{year}{month:02d}{day:02d}.nc"
 
-                # 检查是否已存在
-                if self.check_existing(output_path):
-                    logger.info(f"⏭️ 文件已存在，跳过: {output_path}")
-                    results[f"{year}-{month:02d}"] = True
-                    continue
+            if self.check_existing(output_path):
+                logger.info(f"⏭️ 文件已存在，跳过: {output_path}")
+                results[current_dt.strftime("%Y-%m-%d")] = True
+                current_dt += timedelta(days=1)
+                continue
 
-                # 下载参数
+            params = {
+                'dataset_name': dataset_name,
+                'year': year,
+                'month': month,
+                'day': [day],
+                'time': hours,
+                'variables': variables
+            }
+
+            logger.info(f"正在下载 {current_dt.strftime('%Y-%m-%d')} 数据...")
+            success = self.download_with_retry(params, output_path)
+            results[current_dt.strftime("%Y-%m-%d")] = success
+
+            logger.info(f"进度: {current}/{total_days} ({current / total_days * 100:.1f}%)")
+            current_dt += timedelta(days=1)
+
+        return results
+
+    def list_available_datasets(self) -> Dict[str, Any]:
+        """列出可用数据集"""
+        datasets = self.service_config.get('datasets', {})
+        return super().list_available_datasets(datasets)
+
+
+    def download_monthly_range(self, start_date: str, end_date: str,
+                               dataset_name: str = "era5_monthly",
+                               variables: Optional[List[str]] = None) -> Dict[str, bool]:
+        """下载月平均数据时间序列"""
+        results = {}
+
+        if not self.connect():
+            logger.error("无法连接到C3S API")
+            return results
+
+        start_year, start_month = map(int, start_date.split('-'))
+        end_year, end_month = map(int, end_date.split('-'))
+
+        total_months = (end_year - start_year) * 12 + (end_month - start_month) + 1
+        current = 0
+
+        year, month = start_year, start_month
+        while year < end_year or (year == end_year and month <= end_month):
+            current += 1
+
+            output_path = self.output_dir / f"{dataset_name}_{year}_{month:02d}.nc"
+
+            if self.check_existing(output_path):
+                logger.info(f"⏭️ 文件已存在，跳过: {output_path}")
+                results[f"{year}-{month:02d}"] = True
+            else:
                 params = {
                     'dataset_name': dataset_name,
                     'year': year,
@@ -132,16 +180,38 @@ class C3SDownloader(BaseDownloader):
                 success = self.download_with_retry(params, output_path)
                 results[f"{year}-{month:02d}"] = success
 
-                # 记录进度
-                logger.info(f"进度: {current}/{total_months} ({current / total_months * 100:.1f}%)")
+            if month == 12:
+                year += 1
+                month = 1
+            else:
+                month += 1
+
+            logger.info(f"进度: {current}/{total_months} ({current / total_months * 100:.1f}%)")
 
         return results
 
-    def list_available_datasets(self) -> Dict[str, Any]:
-        """列出可用数据集"""
-        # 这里可以扩展为从API获取数据集列表
-        return {
-            "era5_monthly": "ERA5月平均单层数据",
-            "era5_hourly": "ERA5小时单层数据",
-            "era5_pressure_levels": "ERA5气压层数据",
-        }
+    def download_daily_range(self, start_date: str, end_date: str,
+                             dataset_name: str = "era5_daily",
+                             variables: Optional[List[str]] = None,
+                             hours: Optional[List[str]] = None) -> Dict[str, bool]:
+        """按日期范围下载（日平均）"""
+        return self.download_date_range(
+            start_date=start_date,
+            end_date=end_date,
+            dataset_name=dataset_name,
+            variables=variables,
+            hours=hours
+        )
+
+    def download_hourly_range(self, start_date: str, end_date: str,
+                              dataset_name: str = "era5_hourly",
+                              variables: Optional[List[str]] = None,
+                              hours: Optional[List[str]] = None) -> Dict[str, bool]:
+        """按日期范围下载（小时级）"""
+        return self.download_date_range(
+            start_date=start_date,
+            end_date=end_date,
+            dataset_name=dataset_name,
+            variables=variables,
+            hours=hours
+        )

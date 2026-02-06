@@ -10,23 +10,89 @@ general:
 c3s:
   enabled: true
   api_url: "https://cds.climate.copernicus.eu/api"
+  download_parameters:
+    dataset: "era5_monthly"
+    start_date: "2023-01"
+    end_date: "2023-01"
+    is_hourly: false
   datasets:
-    era5_monthly:
-      name: "reanalysis-era5-single-levels-monthly-means"
+    era5_hourly:
+      name: "reanalysis-era5-single-levels"
+      product_type: "reanalysis"
       variables:
         - "10m_u_component_of_wind"
         - "10m_v_component_of_wind"
-        - "sea_surface_temperature"
-        - "mean_sea_level_pressure"
+        - "2m_dewpoint_temperature"
+        - "2m_temperature"
+      time:
+        - "00:00"
+        - "01:00"
+        - "02:00"
+        - "03:00"
+        - "04:00"
+        - "05:00"
+        - "06:00"
+        - "07:00"
+        - "08:00"
+        - "09:00"
+        - "10:00"
+        - "11:00"
+        - "12:00"
+        - "13:00"
+        - "14:00"
+        - "15:00"
+        - "16:00"
+        - "17:00"
+        - "18:00"
+        - "19:00"
+        - "20:00"
+        - "21:00"
+        - "22:00"
+        - "23:00"
+      data_format: "netcdf"
+      download_format: "unarchived"
+    era5_daily:
+      name: "reanalysis-era5-single-levels-daily-means"
+      product_type: "daily_averaged_reanalysis"
+      variables:
+        - "10m_u_component_of_wind"
+        - "10m_v_component_of_wind"
+        - "2m_dewpoint_temperature"
+        - "2m_temperature"
       time: "00:00"
-      format: "netcdf"
+      data_format: "netcdf"
+    era5_monthly:
+      name: "reanalysis-era5-single-levels-monthly-means"
+      product_type: "monthly_averaged_reanalysis"
+      variables:
+        - "10m_u_component_of_wind"
+        - "10m_v_component_of_wind"
+        - "2m_dewpoint_temperature"
+        - "2m_temperature"
+      time: "00:00"
+      data_format: "netcdf"
 
 # CMEMS配置
 cmems:
   enabled: true
   api_url: "https://data.marine.copernicus.eu"
+  download_parameters:
+    dataset: "glo12v1_monthly"
+    start_date: "2022-01"
+    end_date: "2024-12"
+    is_hourly: false
+    variables:
+      - "thetao"
+      - "so"
   datasets:
-    glo12_monthly:
+    glo12v1_daily:
+      dataset_id: "cmems_mod_glo_phy_my_0.083deg_P1D-m"
+      variables:
+        - "thetao"
+        - "so"
+      depth_range: [0, 1000]
+      spatial_range: [-180, 180, -90, 90]
+    glo12v1_monthly:
       dataset_id: "cmems_mod_glo_phy_my_0.083deg_P1M-m"
       variables:
         - "thetao"
@@ -36,20 +102,52 @@ cmems:
         - "zos"
       depth_range: [0, 1000]
       spatial_range: [-180, 180, -90, 90]
-
-# 预定义下载任务
-#download_tasks:
-#
-#  # C3S任务模板
-#  c3s_era5_monthly:
-#    service: "c3s"
-#    dataset: "era5_monthly"
-#    output_subdir: "c3s/monthly"
-#    file_pattern: "era5_{year}-{month:02d}.nc"
-#
-#  # CMEMS任务模板
-#  cmems_glo12_monthly:
-#    service: "cmems"
-#    dataset: "glo12_monthly"
-#    output_subdir: "cmems/monthly"
-#    file_pattern: "glo12_{year}-{month:02d}.nc"
+    glo12v4_hourly:
+      dataset_id: "cmems_mod_glo_phy_anfc_0.083deg_PT1H-m"
+      variables:
+        - "thetao"
+        - "so"
+      time:
+        - "00:00"
+        - "01:00"
+        - "02:00"
+        - "03:00"
+        - "04:00"
+        - "05:00"
+        - "06:00"
+        - "07:00"
+        - "08:00"
+        - "09:00"
+        - "10:00"
+        - "11:00"
+        - "12:00"
+        - "13:00"
+        - "14:00"
+        - "15:00"
+        - "16:00"
+        - "17:00"
+        - "18:00"
+        - "19:00"
+        - "20:00"
+        - "21:00"
+        - "22:00"
+        - "23:00"
+      depth_range: [0, 1000]
+      spatial_range: [-180, 180, -90, 90]
+    glo12v4_daily:
+      dataset_id: "cmems_mod_glo_phy_anfc_0.083deg_P1D-m"
+      variables:
+        - "thetao"
+        - "so"
+      depth_range: [0, 1000]
+      spatial_range: [-180, 180, -90, 90]
+    glo12v4_monthly:
+      dataset_id: "cmems_mod_glo_phy_anfc_0.083deg_P1M-m"
+      variables:
+        - "thetao"
+        - "so"
+        - "uo"
+        - "vo"
+        - "zos"
+      depth_range: [0, 1000]
+      spatial_range: [-180, 180, -90, 90]

@@ -2,9 +2,9 @@
 CMEMS数据下载器（工程化版本）
 """
 from copernicusmarine import subset, get
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 
 from downloaders.baseloader import BaseDownloader
@@ -73,7 +73,7 @@ class CMEMSDownloader(BaseDownloader):
 
     def download_monthly_range(self, start_date: str, end_date: str,
                                dataset_name: str = "glo12_monthly",
-                               variables: List[str] = None) -> Dict[str, bool]:
+                               variables: Optional[List[str]] = None) -> Dict[str, bool]:
         """下载月平均数据时间序列"""
         results = {}
 
@@ -130,6 +130,116 @@ class CMEMSDownloader(BaseDownloader):
 
             # 记录进度
             logger.info(f"进度: {current}/{total_months} ({current / total_months * 100:.1f}%)")
+
+        return results
+
+    def download_daily_range(self, start_date: str, end_date: str,
+                             dataset_name: str,
+                             variables: Optional[List[str]] = None) -> Dict[str, bool]:
+        """下载日平均数据时间序列"""
+        results = {}
+
+        if not self.connect():
+            logger.error("无法连接到CMEMS服务")
+            return results
+
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        if end_dt < start_dt:
+            raise ValueError("end_date 不能早于 start_date")
+
+        total_days = (end_dt - start_dt).days + 1
+        current = 0
+
+        current_dt = start_dt
+        while current_dt <= end_dt:
+            current += 1
+            day_start = datetime(current_dt.year, current_dt.month, current_dt.day)
+            day_end = day_start + timedelta(days=1)
+
+            output_path = self.output_dir / f"{dataset_name}_{current_dt.strftime('%Y%m%d')}.nc"
+
+            if self.check_existing(output_path):
+                logger.info(f"⏭️ 文件已存在，跳过: {output_path}")
+                results[current_dt.strftime("%Y-%m-%d")] = True
+                current_dt += timedelta(days=1)
+                continue
+
+            params = {
+                'dataset_name': dataset_name,
+                'start_datetime': day_start,
+                'end_datetime': day_end,
+                'variables': variables,
+                'force_download': False
+            }
+
+            logger.info(f"正在下载 {current_dt.strftime('%Y-%m-%d')} 数据...")
+            success = self.download_with_retry(params, output_path)
+            results[current_dt.strftime("%Y-%m-%d")] = success
+
+            logger.info(f"进度: {current}/{total_days} ({current / total_days * 100:.1f}%)")
+            current_dt += timedelta(days=1)
+
+        return results
+
+    def download_hourly_range(self, start_date: str, end_date: str,
+                              dataset_name: str,
+                              variables: Optional[List[str]] = None,
+                              hours: Optional[List[str]] = None) -> Dict[str, bool]:
+        """下载小时级数据（按天分片）"""
+        results = {}
+
+        if not self.connect():
+            logger.error("无法连接到CMEMS服务")
+            return results
+
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        if end_dt < start_dt:
+            raise ValueError("end_date 不能早于 start_date")
+
+        current_day = datetime(start_dt.year, start_dt.month, start_dt.day)
+        end_day = datetime(end_dt.year, end_dt.month, end_dt.day)
+
+        total_days = (end_day - current_day).days + 1
+        current = 0
+
+        while current_day <= end_day:
+            current += 1
+            day_start = current_day
+            day_end = day_start + timedelta(days=1)
+
+            if hours:
+                hours_sorted = sorted(hours)
+                range_start = datetime.fromisoformat(f"{current_day.strftime('%Y-%m-%d')}T{hours_sorted[0]}")
+                last_hour = hours_sorted[-1]
+                range_end = datetime.fromisoformat(f"{current_day.strftime('%Y-%m-%d')}T{last_hour}") + timedelta(hours=1)
+            else:
+                range_start = day_start
+                range_end = day_end
+
+            output_path = self.output_dir / f"{dataset_name}_{current_day.strftime('%Y%m%d')}.nc"
+
+            if self.check_existing(output_path):
+                logger.info(f"⏭️ 文件已存在，跳过: {output_path}")
+                results[current_day.strftime("%Y-%m-%d")] = True
+                current_day += timedelta(days=1)
+                continue
+
+            params = {
+                'dataset_name': dataset_name,
+                'start_datetime': range_start,
+                'end_datetime': range_end,
+                'variables': variables,
+                'force_download': False
+            }
+
+            logger.info(f"正在下载 {current_day.strftime('%Y-%m-%d')} 小时级数据...")
+            success = self.download_with_retry(params, output_path)
+            results[current_day.strftime("%Y-%m-%d")] = success
+
+            logger.info(f"进度: {current}/{total_days} ({current / total_days * 100:.1f}%)")
+            current_day += timedelta(days=1)
 
         return results
 
