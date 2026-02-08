@@ -49,9 +49,16 @@ class C3SDownloader(BaseDownloader):
                 "variable": params.get('variables') or dataset_cfg['variables'],
                 "year": str(params['year']),
                 "month": f"{params['month']:02d}",
-                "time": params.get('time') or dataset_cfg.get('time', '00:00'),
-                "format": dataset_cfg.get('format', 'netcdf')
+                "data_format": dataset_cfg.get('data_format', 'netcdf')
             }
+
+            if params.get('time') or dataset_cfg.get('time'):
+                request_params["time"] = params.get('time') or dataset_cfg.get('time')
+
+            # Add dataset-specific optional parameters when present.
+            for optional_key in ("daily_statistic", "frequency", "statistic", "time_zone"):
+                if optional_key in dataset_cfg:
+                    request_params[optional_key] = dataset_cfg[optional_key]
 
             if 'data_format' in dataset_cfg:
                 request_params['data_format'] = dataset_cfg['data_format']

@@ -1,0 +1,44 @@
+general:
+  log_level: INFO
+  log_dir: "./logs"
+  max_retries: 2
+  timeout: 300
+  output_base_dir: "./data/test_case_daily"
+
+c3s:
+  enabled: true
+  api_url: "https://cds.climate.copernicus.eu/api"
+  download_parameters:
+    dataset: "era5_daily"
+    start_date: "2023-01-01"
+    end_date: "2023-01-01"
+    is_hourly: false
+    variables:
+      - "2m_temperature"  #如果此处填写了变量，则会覆盖dataset中配置的变量
+  datasets:
+    era5_daily:
+      name: "derived-era5-single-levels-daily-statistics"
+      product_type: "reanalysis"
+      daily_statistic: "daily_mean"
+      time_zone: "utc+00:00"
+      variables:
+        - "2m_temperature"
+      data_format: "netcdf"
+
+cmems:
+  enabled: true
+  api_url: "https://data.marine.copernicus.eu"
+  download_parameters:
+    dataset: "glo12v1_daily"
+    start_date: "2022-01-01"
+    end_date: "2022-01-01"
+    is_hourly: false
+    variables:
+      - "thetao"
+  datasets:
+    glo12v1_daily:
+      dataset_id: "cmems_mod_glo_phy_my_0.083deg_P1D-m"
+      variables:
+        - "thetao"
+      depth_range: [0, 10]
+      spatial_range: [0, 1, 0, 1]

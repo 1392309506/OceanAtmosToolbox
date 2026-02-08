@@ -1,0 +1,51 @@
+general:
+  log_level: INFO
+  log_dir: "./logs"
+  max_retries: 2
+  timeout: 300
+  output_base_dir: "./data/test_case_hourly"
+
+c3s:
+  enabled: true
+  api_url: "https://cds.climate.copernicus.eu/api"
+  download_parameters:
+    dataset: "era5_hourly"
+    start_date: "2023-01-01"
+    end_date: "2023-01-01"
+    is_hourly: true
+    variables:
+      - "2m_temperature"
+    hours:
+      - "00:00"
+  datasets:
+    era5_hourly:
+      name: "reanalysis-era5-single-levels"
+      product_type: "reanalysis"
+      variables:
+        - "2m_temperature"
+      time:
+        - "00:00"
+      data_format: "netcdf"
+      download_format: "unarchived"
+
+cmems:
+  enabled: true
+  api_url: "https://data.marine.copernicus.eu"
+  download_parameters:
+    dataset: "glo12v4_hourly"
+    start_date: "2022-06-02"
+    end_date: "2022-06-02"
+    is_hourly: true
+    variables:
+      - "thetao"
+    hours:
+      - "00:00"
+  datasets:
+    glo12v4_hourly:
+      dataset_id: "cmems_mod_glo_phy_anfc_0.083deg_PT1H-m"
+      variables:
+        - "thetao"
+      time:
+        - "00:00"
+      depth_range: [0, 10]
+      spatial_range: [0, 1, 0, 1]
