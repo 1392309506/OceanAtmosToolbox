@@ -54,12 +54,13 @@ c3s:
     era5_daily:
       name: "derived-era5-single-levels-daily-statistics"
       product_type: "reanalysis"
+      daily_statistic: "daily_mean"
+      time_zone: "utc+00:00"
       variables:
         - "10m_u_component_of_wind"
         - "10m_v_component_of_wind"
         - "2m_dewpoint_temperature"
         - "2m_temperature"
-      time: "00:00"
       data_format: "netcdf"
     era5_monthly:
       name: "reanalysis-era5-single-levels-monthly-means"
